@@ -1,0 +1,142 @@
+# =================================================================
+# Unity - 核心生成文件
+#
+# 这些文件和文件夹由 Unity 编辑器在本地生成和管理。
+# 提交它们会导致仓库臃肿和严重的团队协作冲突。
+# =================================================================
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Bb]uild/
+/[Bb]uilds/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+/[Mm]emoryCaptures/
+
+# =================================================================
+# Meta 文件规则
+#
+# Meta 文件对于 Unity 跟踪资源至关重要，必须提交。
+# 这条规则确保 Assets 目录下的所有 .meta 文件都不会被忽略。
+# =================================================================
+!/[Aa]ssets/**/*.meta
+
+# =================================================================
+# IDE 和代码编辑器
+#
+# 忽略 Visual Studio, Rider, VS Code 等IDE自动生成的解决方案和项目文件。
+# =================================================================
+# Visual Studio / Rider
+.vs/
+.idea/
+*.sln
+*.csproj
+*.unityproj
+*.suo
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+
+# VS Code
+.vscode/
+.history/
+
+# =================================================================
+# 崩溃报告和日志文件
+#
+# 这里包括了我们讨论的 mono_crash 文件和其它日志文件。
+# =================================================================
+*.log
+mono_crash.*.json
+sysinfo.txt
+*.stackdump
+
+# =================================================================
+# 构建产物
+#
+# 忽略最终打包生成的文件。
+# =================================================================
+ExportedObj/
+*.apk
+*.aab
+*.unitypackage
+*.app
+
+# =================================================================
+# 特定插件和工具生成的文件
+#
+# 忽略一些常用插件（如 Odin, Gaia, Addressables）生成的缓存或数据。
+# =================================================================
+# Jetbrains Rider plugin
+[Aa]ssets/Plugins/Editor/JetBrains*
+
+# Gradle cache
+.gradle/
+
+# Crashlytics
+crashlytics-build.properties
+
+# Addressables
+[Aa]ssets/[Aa]ddressable[Aa]ssets[Dd]ata/*/*.bin*
+
+# Ludiq (Bolt)
+Assets/Ludiq/Ludiq.PeekCore
+Assets/Ludiq/Ludiq.Peek
+Assets/Ludiq.Generated/Transient
+
+# Odin Inspector
+Assets/Plugins/Sirenix/Assemblies/AOT/*
+Assets/Plugins/Sirenix/Demos/*
+!/Assets/Plugins/Sirenix/Demos/*.unitypackage
+
+# Gaia / Procedural Worlds
+Assets/Procedural*Worlds/Gaia/Asset*Samples/*
+Assets/Samples/Terrain*Tools/*
+
+# =================================================================
+# 操作系统生成文件 (macOS, Windows)
+#
+# 忽略不同操作系统自动生成的系统文件和缩略图缓存。
+# =================================================================
+# General
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+Icon
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+[Dd]esktop.ini
+$RECYCLE.BIN/
+
+# Windows Installer files
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Mac
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
