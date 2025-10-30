@@ -410,11 +410,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   prefab: {fileID: 1503882575}
-  row: 10
-  column: 10
-  startYPos: 300
-  distanceX: 75
-  distanceY: 75
+  row: 6
+  column: 8
+  startXPos: -1750
+  startYPos: 425
+  distanceX: 220
+  distanceY: 170
 --- !u!114 &658686485
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -667,12 +668,12 @@ PrefabInstance:
     - target: {fileID: 4367868395922070849, guid: 929e0372f8c64834d8048b12f0b95f72,
         type: 3}
       propertyPath: m_SizeDelta.x
-      value: 60
+      value: 200
       objectReference: {fileID: 0}
     - target: {fileID: 4367868395922070849, guid: 929e0372f8c64834d8048b12f0b95f72,
         type: 3}
       propertyPath: m_SizeDelta.y
-      value: 60
+      value: 150
       objectReference: {fileID: 0}
     - target: {fileID: 4367868395922070849, guid: 929e0372f8c64834d8048b12f0b95f72,
         type: 3}
@@ -712,7 +713,7 @@ PrefabInstance:
     - target: {fileID: 4367868395922070849, guid: 929e0372f8c64834d8048b12f0b95f72,
         type: 3}
       propertyPath: m_AnchoredPosition.x
-      value: 164
+      value: 116
       objectReference: {fileID: 0}
     - target: {fileID: 4367868395922070849, guid: 929e0372f8c64834d8048b12f0b95f72,
         type: 3}
@@ -767,7 +768,17 @@ PrefabInstance:
     - target: {fileID: 5591469507235759664, guid: 929e0372f8c64834d8048b12f0b95f72,
         type: 3}
       propertyPath: m_Delegates.Array.size
-      value: 2
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5591469507235759664, guid: 929e0372f8c64834d8048b12f0b95f72,
+        type: 3}
+      propertyPath: m_Delegates.Array.data[0].callback.m_PersistentCalls.m_Calls.Array.size
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5591469507235759664, guid: 929e0372f8c64834d8048b12f0b95f72,
+        type: 3}
+      propertyPath: m_Delegates.Array.data[1].callback.m_PersistentCalls.m_Calls.Array.size
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 5591469507235759664, guid: 929e0372f8c64834d8048b12f0b95f72,
         type: 3}
@@ -787,7 +798,7 @@ PrefabInstance:
     - target: {fileID: 5591469507235759664, guid: 929e0372f8c64834d8048b12f0b95f72,
         type: 3}
       propertyPath: m_Delegates.Array.data[0].callback.m_PersistentCalls.m_Calls.Array.data[0].m_MethodName
-      value: OnMousePointEnter
+      value: OnPhotoClick
       objectReference: {fileID: 0}
     - target: {fileID: 5591469507235759664, guid: 929e0372f8c64834d8048b12f0b95f72,
         type: 3}
