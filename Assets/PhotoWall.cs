@@ -20,41 +20,52 @@ public class PhotoWall : MonoBehaviour, IPointerClickHandler
 
     float initMoveDistance = 1800; //初始从右侧进入的移动距离
 
-    float enlargeSize = 3;      //放大倍数
-    float radiateSize = 500;    //扩散效果的半径范围
+    [Header("放大设置")]
+    public float enlargeSize = 5f;      //放大倍数
+
+    float radiateSize = 550;    //扩散效果的半径范围
+
+    [Header("外围照片移动设置")]
+    public float inwardMoveDistance = 100f; // 外围照片向内移动的距离
+
+    [Header("自动恢复设置")]
+    public float autoRestoreTime = 30f; // 自动恢复时间（秒）
 
     List<List<RectTransform>> goList;  //二维列表，存储所有照片引用
     Dictionary<RectTransform, Vector2> itemPosDict;//字典，照片-目标位置
+    Dictionary<RectTransform, Vector2Int> itemIndexDict; // 字典，照片-行列索引
+    Dictionary<RectTransform, string> itemDetailMap; // 字典，照片-详情页图片名称映射
     List<RectTransform> changedItemList;  // 临时列表，存储受扩散效果影响的照片
     Sprite[] loadedSprites;               // 图片数组（从Resources加载）
+    Dictionary<string, Sprite> detailSprites; // 详情页图片字典
 
     RectTransform currentSelectedItem; // 当前选中的照片
+    GameObject currentDetailPage; // 当前显示的详情页（改为GameObject）
     bool isExpanded = false; // 是否已展开
+    Coroutine autoRestoreCoroutine; // 自动恢复协程
 
-    // Use this for initialization初始化
     void Start()
     {
-        // 手动设置DOTween容量，避免自动扩容警告
         DOTween.SetTweensCapacity(2000, 100);
 
         goList = new List<List<RectTransform>>();
         itemPosDict = new Dictionary<RectTransform, Vector2>();
+        itemIndexDict = new Dictionary<RectTransform, Vector2Int>();
+        itemDetailMap = new Dictionary<RectTransform, string>();
         changedItemList = new List<RectTransform>();
-        // 从Resources文件夹加载所有图片
-        LoadSpritesFromResources();
+        detailSprites = new Dictionary<string, Sprite>();
 
+        LoadSpritesFromResources();
+        LoadDetailSprites();
         CreateGos();
     }
 
     void LoadSpritesFromResources()
     {
-        // 从Resources/Photos/文件夹加载所有Sprite
         loadedSprites = Resources.LoadAll<Sprite>("Photos/");
-
-        // 检查是否成功加载
         if (loadedSprites == null || loadedSprites.Length == 0)
         {
-            Debug.LogError("没有在Resources/Photos/文件夹中找到图片！请检查路径和文件格式。");
+            Debug.LogError("没有在Resources/Photos/文件夹中找到图片！");
         }
         else
         {
@@ -62,91 +73,93 @@ public class PhotoWall : MonoBehaviour, IPointerClickHandler
         }
     }
 
-    void CreateGos()//创建照片墙
+    void LoadDetailSprites()
     {
-        // 生成所有物体，并添加到字典
+        Sprite[] details = Resources.LoadAll<Sprite>("Details/");
+        if (details == null || details.Length == 0)
+        {
+            Debug.LogError("没有在Resources/Details/文件夹中找到详情页图片！");
+        }
+        else
+        {
+            foreach (Sprite detail in details)
+            {
+                detailSprites[detail.name] = detail;
+            }
+            Debug.Log($"成功加载 {details.Length} 张详情页图片");
+        }
+    }
+
+    void CreateGos()
+    {
         for (int i = 0; i < row; i++)
         {
             List<RectTransform> gos = new List<RectTransform>();
             goList.Add(gos);
-            float lastPosX = 0;
+
             for (int j = 0; j < column; j++)
             {
-                //实例化照片预制体
-                RectTransform item = (Instantiate(prefab.gameObject) as GameObject).GetComponent<RectTransform>();
-                item.name = i + " " + j;
+                RectTransform item = Instantiate(prefab.gameObject).GetComponent<RectTransform>();
+                item.name = $"Photo_{i}_{j}";
                 item.transform.SetParent(transform);
 
-                // === 设置图片 ===
+                // 设置图片
                 if (loadedSprites != null && loadedSprites.Length > 0)
                 {
                     Image img = item.GetComponent<Image>();
                     if (img != null)
                     {
-                        // 随机选择一张图片
                         int randomIndex = Random.Range(0, loadedSprites.Length);
-                        img.sprite = loadedSprites[randomIndex];
+                        Sprite selectedSprite = loadedSprites[randomIndex];
+                        img.sprite = selectedSprite;
+
+                        string detailName = GetDetailName(selectedSprite.name);
+                        itemDetailMap[item] = detailName;
                     }
                 }
 
-                // 计算目标位置（最终位置）
-                Vector2 endPos = new Vector3(
-                    startXPos + j * distanceX,      // 使用 startXPos
-                    startYPos - i * distanceY
-                );
-
-                // 再计算起始位置（从右侧进入）
-                Vector2 startPos = new Vector3(
-                    endPos.x + initMoveDistance,  // 从右侧 initMoveDistance 距离处开始
-                    endPos.y
-                );
+                Vector2 endPos = new Vector3(startXPos + j * distanceX, startYPos - i * distanceY);
+                Vector2 startPos = new Vector3(endPos.x + initMoveDistance, endPos.y);
 
                 item.anchoredPosition = startPos;
 
-                //创建动画：起始位置到目标位置
-                Tweener tweener = item.DOAnchorPosX(endPos.x, Random.Range(1.8f, 2f));  // 缓动到目标位置
-                tweener.SetDelay(j * 0.1f + (row - i) * 0.1f);      // 延时
-                tweener.SetEase(Ease.InSine);           // 缓动效果
+                Tweener tweener = item.DOAnchorPos(endPos, Random.Range(1.8f, 2f));
+                tweener.SetDelay(j * 0.1f + (row - i) * 0.1f);
+                tweener.SetEase(Ease.InSine);
                 item.gameObject.SetActive(true);
 
-                // 添加点击事件
                 AddClickEventToItem(item);
 
-                //存储引用
                 gos.Add(item);
-                itemPosDict.Add(item, endPos);//记录照片的最终位置
-
-                lastPosX = item.anchoredPosition.x;//更新最后位置
+                itemPosDict.Add(item, endPos);
+                itemIndexDict.Add(item, new Vector2Int(i, j));
             }
         }
     }
 
-    // 为每个照片添加点击事件
+    string GetDetailName(string spriteName)
+    {
+        return spriteName + "_detail";
+    }
+
     void AddClickEventToItem(RectTransform item)
     {
-        // 添加EventTrigger组件
         EventTrigger trigger = item.GetComponent<EventTrigger>();
         if (trigger == null)
-        {
             trigger = item.gameObject.AddComponent<EventTrigger>();
-        }
 
-        // 创建点击事件
         EventTrigger.Entry entry = new EventTrigger.Entry();
         entry.eventID = EventTriggerType.PointerClick;
         entry.callback.AddListener((data) => { OnPhotoClick(item); });
-
-        // 添加到EventTrigger
         trigger.triggers.Add(entry);
     }
 
-    // 照片点击处理
     public void OnPhotoClick(RectTransform item)
     {
-        // 如果已经有展开的照片，先恢复它
+        ResetAutoRestoreTimer();
+
         if (isExpanded && currentSelectedItem != null)
         {
-            // 如果点击的是同一个照片，则恢复所有
             if (currentSelectedItem == item)
             {
                 RestoreAllItems();
@@ -154,29 +167,24 @@ public class PhotoWall : MonoBehaviour, IPointerClickHandler
             }
             else
             {
-                // 如果点击的是不同照片，先恢复之前的，再展开新的
                 RestoreAllItems();
             }
         }
 
-        // 展开新点击的照片
         ExpandItem(item);
     }
 
-    // 展开照片
     void ExpandItem(RectTransform item)
     {
         currentSelectedItem = item;
         isExpanded = true;
 
-        // 缓动改变中心物体尺寸
-        item.DOScale(enlargeSize, 0.5f);
+        // 隐藏原始图片
+        item.gameObject.SetActive(false);
 
         Vector2 pos = itemPosDict[item];
-
         changedItemList = new List<RectTransform>();
 
-        // 添加扩散物体到集合
         foreach (KeyValuePair<RectTransform, Vector2> i in itemPosDict)
         {
             if (i.Key != item && Vector2.Distance(i.Value, pos) < radiateSize)
@@ -185,43 +193,208 @@ public class PhotoWall : MonoBehaviour, IPointerClickHandler
             }
         }
 
-        // 缓动来解决扩散物体的动画
         for (int i = 0; i < changedItemList.Count; i++)
         {
             Vector2 targetPos = itemPosDict[item] + (itemPosDict[changedItemList[i]] - itemPosDict[item]).normalized * radiateSize;
             changedItemList[i].DOAnchorPos(targetPos, 0.8f);
         }
+
+        // 显示详情页
+        ShowDetailPage(item);
+
+        StartAutoRestoreTimer();
     }
 
-    // 恢复所有照片到原始状态
-    void RestoreAllItems()
+    // 修复后的ShowDetailPage方法
+    void ShowDetailPage(RectTransform item)
     {
-        if (currentSelectedItem != null)
+        // 销毁现有的详情页
+        if (currentDetailPage != null)
         {
-            // 缓动恢复中心物体尺寸
-            currentSelectedItem.DOScale(1, 0.5f);
+            Destroy(currentDetailPage);
         }
 
-        // 缓动将扩散物体恢复到初始位置
+        // 创建详情页对象
+        currentDetailPage = new GameObject("DetailPage", typeof(RectTransform), typeof(Image));
+        RectTransform detailRT = currentDetailPage.GetComponent<RectTransform>();
+        detailRT.SetParent(transform);
+
+        // 关键修复：使用目标位置而不是当前位置
+        Vector2 targetItemPos = itemPosDict[item]; // 照片的目标位置
+        Vector2 inwardOffset = CalculateInwardOffset(item);
+
+        // 设置位置和尺寸
+        detailRT.anchoredPosition = targetItemPos + inwardOffset; // 目标位置 + 偏移
+        detailRT.sizeDelta = item.sizeDelta;
+
+        // 复制锚点设置，确保位置计算一致
+        detailRT.anchorMin = item.anchorMin;
+        detailRT.anchorMax = item.anchorMax;
+        detailRT.pivot = item.pivot;
+
+        // 设置图片
+        Image detailImage = currentDetailPage.GetComponent<Image>();
+        if (itemDetailMap.ContainsKey(item))
+        {
+            string detailName = itemDetailMap[item];
+            if (detailSprites.ContainsKey(detailName))
+            {
+                detailImage.sprite = detailSprites[detailName];
+            }
+            else
+            {
+                // 如果找不到详情页，使用原始图片作为备选
+                detailImage.sprite = item.GetComponent<Image>().sprite;
+                Debug.LogWarning($"使用原始图片作为详情页: {detailName} 未找到");
+            }
+        }
+
+        // 为详情页添加点击事件
+        AddClickEventToDetailPage(detailRT);
+
+        // 设置初始状态和动画
+        detailRT.localScale = Vector3.one;
+        detailRT.DOScale(enlargeSize, 0.5f).SetEase(Ease.OutBack);
+
+        // 确保详情页在正确层级
+        detailRT.SetAsLastSibling();
+
+        Debug.Log($"详情页位置: {detailRT.anchoredPosition}, 目标位置: {targetItemPos}, 偏移: {inwardOffset}");
+    }
+
+    // 为详情页添加点击事件
+    void AddClickEventToDetailPage(RectTransform detailRT)
+    {
+        EventTrigger trigger = detailRT.gameObject.AddComponent<EventTrigger>();
+        EventTrigger.Entry entry = new EventTrigger.Entry();
+        entry.eventID = EventTriggerType.PointerClick;
+        entry.callback.AddListener((data) => {
+            Debug.Log("详情页被点击");
+            RestoreAllItems();
+        });
+        trigger.triggers.Add(entry);
+
+        // 确保详情页可以接收点击
+        Image image = detailRT.GetComponent<Image>();
+        if (image != null)
+        {
+            image.raycastTarget = true;
+        }
+    }
+
+    void HideDetailPage()
+    {
+        if (currentDetailPage != null)
+        {
+            Destroy(currentDetailPage);
+            currentDetailPage = null;
+        }
+    }
+
+    Vector2 CalculateInwardOffset(RectTransform item)
+    {
+        if (!itemIndexDict.ContainsKey(item))
+            return Vector2.zero;
+
+        Vector2Int index = itemIndexDict[item];
+        int i = index.x;
+        int j = index.y;
+
+        Vector2 offset = Vector2.zero;
+
+        if (j == 0)
+            offset.x = inwardMoveDistance;
+        else if (j == column - 1)
+            offset.x = -inwardMoveDistance;
+        else if (j < column / 2)
+            offset.x = inwardMoveDistance * (1 - (float)j / (column / 2));
+        else
+            offset.x = -inwardMoveDistance * ((float)(j - column / 2) / (column / 2));
+
+        if (i == 0)
+            offset.y = -inwardMoveDistance;
+        else if (i == row - 1)
+            offset.y = inwardMoveDistance;
+        else if (i < row / 2)
+            offset.y = -inwardMoveDistance * (1 - (float)i / (row / 2));
+        else
+            offset.y = inwardMoveDistance * ((float)(i - row / 2) / (row / 2));
+
+        return offset;
+    }
+
+    void RestoreAllItems()
+    {
+        StopAutoRestoreTimer();
+
+        if (currentSelectedItem != null)
+        {
+            currentSelectedItem.gameObject.SetActive(true);
+            currentSelectedItem.DOAnchorPos(itemPosDict[currentSelectedItem], 0.5f);
+        }
+
         for (int i = 0; i < changedItemList.Count; i++)
         {
             changedItemList[i].DOAnchorPos(itemPosDict[changedItemList[i]], 0.8f);
         }
 
-        // 重置状态
+        HideDetailPage();
+
         currentSelectedItem = null;
         isExpanded = false;
         changedItemList.Clear();
+
+        Debug.Log("已恢复所有项目");
     }
 
-    // 实现IPointerClickHandler接口，用于在空白处点击恢复
     public void OnPointerClick(PointerEventData eventData)
     {
-        // 检查是否点击了空白处（不是照片）
+        ResetAutoRestoreTimer();
+
         if (eventData.pointerCurrentRaycast.gameObject == null ||
             eventData.pointerCurrentRaycast.gameObject.transform.parent != transform)
         {
             RestoreAllItems();
         }
+    }
+
+    void StartAutoRestoreTimer()
+    {
+        StopAutoRestoreTimer();
+        autoRestoreCoroutine = StartCoroutine(AutoRestoreCoroutine());
+    }
+
+    void StopAutoRestoreTimer()
+    {
+        if (autoRestoreCoroutine != null)
+        {
+            StopCoroutine(autoRestoreCoroutine);
+            autoRestoreCoroutine = null;
+        }
+    }
+
+    void ResetAutoRestoreTimer()
+    {
+        if (isExpanded)
+        {
+            StartAutoRestoreTimer();
+        }
+    }
+
+    IEnumerator AutoRestoreCoroutine()
+    {
+        yield return new WaitForSeconds(autoRestoreTime);
+        RestoreAllItems();
+        autoRestoreCoroutine = null;
+    }
+
+    void OnDisable()
+    {
+        StopAutoRestoreTimer();
+    }
+
+    void OnDestroy()
+    {
+        StopAutoRestoreTimer();
     }
 }

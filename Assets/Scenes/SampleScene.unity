@@ -209,7 +209,7 @@ Transform:
   m_GameObject: {fileID: 330585543}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 1, z: -868}
+  m_LocalPosition: {x: 0, y: 1, z: -910}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -412,10 +412,11 @@ MonoBehaviour:
   prefab: {fileID: 1503882575}
   row: 6
   column: 8
-  startXPos: -1750
+  startXPos: -1760
   startYPos: 425
-  distanceX: 220
+  distanceX: 230
   distanceY: 170
+  inwardMoveDistance: 100
 --- !u!114 &658686485
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -668,7 +669,7 @@ PrefabInstance:
     - target: {fileID: 4367868395922070849, guid: 929e0372f8c64834d8048b12f0b95f72,
         type: 3}
       propertyPath: m_SizeDelta.x
-      value: 200
+      value: 212
       objectReference: {fileID: 0}
     - target: {fileID: 4367868395922070849, guid: 929e0372f8c64834d8048b12f0b95f72,
         type: 3}
@@ -688,7 +689,7 @@ PrefabInstance:
     - target: {fileID: 4367868395922070849, guid: 929e0372f8c64834d8048b12f0b95f72,
         type: 3}
       propertyPath: m_LocalPosition.z
-      value: 0
+      value: 90
       objectReference: {fileID: 0}
     - target: {fileID: 4367868395922070849, guid: 929e0372f8c64834d8048b12f0b95f72,
         type: 3}
@@ -713,7 +714,7 @@ PrefabInstance:
     - target: {fileID: 4367868395922070849, guid: 929e0372f8c64834d8048b12f0b95f72,
         type: 3}
       propertyPath: m_AnchoredPosition.x
-      value: 116
+      value: 152
       objectReference: {fileID: 0}
     - target: {fileID: 4367868395922070849, guid: 929e0372f8c64834d8048b12f0b95f72,
         type: 3}
