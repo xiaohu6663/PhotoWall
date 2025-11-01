@@ -416,7 +416,9 @@ MonoBehaviour:
   startYPos: 425
   distanceX: 230
   distanceY: 170
-  inwardMoveDistance: 100
+  enlargeSize: 2
+  inwardMoveDistance: 120
+  autoRestoreTime: 3
 --- !u!114 &658686485
 MonoBehaviour:
   m_ObjectHideFlags: 0

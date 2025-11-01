@@ -9,8 +9,8 @@ public class PhotoWall : MonoBehaviour, IPointerClickHandler
 {
     public RectTransform prefab; //照片预制体
 
-    public int row = 10;       // 行
-    public int column = 20;    // 列
+    public int row = 6;       // 行
+    public int column = 8;    // 列
 
     public int startXPos = 60;  // 起始X坐标（最左侧照片的位置）
     public int startYPos = -100;// 起始Y坐标
@@ -29,7 +29,7 @@ public class PhotoWall : MonoBehaviour, IPointerClickHandler
     public float inwardMoveDistance = 100f; // 外围照片向内移动的距离
 
     [Header("自动恢复设置")]
-    public float autoRestoreTime = 30f; // 自动恢复时间（秒）
+    public float autoRestoreTime = 30f; // 自动恢复时间（秒")
 
     List<List<RectTransform>> goList;  //二维列表，存储所有照片引用
     Dictionary<RectTransform, Vector2> itemPosDict;//字典，照片-目标位置
@@ -70,6 +70,12 @@ public class PhotoWall : MonoBehaviour, IPointerClickHandler
         else
         {
             Debug.Log($"成功加载 {loadedSprites.Length} 张图片");
+
+            // 检查图片数量是否匹配
+            if (loadedSprites.Length != row * column)
+            {
+                Debug.LogWarning($"图片数量不匹配: 需要 {row * column} 张，但找到 {loadedSprites.Length} 张");
+            }
         }
     }
 
@@ -90,8 +96,12 @@ public class PhotoWall : MonoBehaviour, IPointerClickHandler
         }
     }
 
-    void CreateGos()
+    void CreateGos()//入场动画
     {
+        // 创建图片索引列表并洗牌
+        List<int> photoIndices = GetShuffledPhotoIndices();
+        int photoIndex = 0;
+
         for (int i = 0; i < row; i++)
         {
             List<RectTransform> gos = new List<RectTransform>();
@@ -103,18 +113,20 @@ public class PhotoWall : MonoBehaviour, IPointerClickHandler
                 item.name = $"Photo_{i}_{j}";
                 item.transform.SetParent(transform);
 
-                // 设置图片
+                // 设置图片 - 使用洗牌后的顺序
                 if (loadedSprites != null && loadedSprites.Length > 0)
                 {
                     Image img = item.GetComponent<Image>();
                     if (img != null)
                     {
-                        int randomIndex = Random.Range(0, loadedSprites.Length);
-                        Sprite selectedSprite = loadedSprites[randomIndex];
+                        // 使用洗牌后的索引
+                        int spriteIndex = photoIndices[photoIndex];
+                        Sprite selectedSprite = loadedSprites[spriteIndex];
                         img.sprite = selectedSprite;
 
                         string detailName = GetDetailName(selectedSprite.name);
                         itemDetailMap[item] = detailName;
+                        photoIndex++;
                     }
                 }
 
@@ -135,6 +147,31 @@ public class PhotoWall : MonoBehaviour, IPointerClickHandler
                 itemIndexDict.Add(item, new Vector2Int(i, j));
             }
         }
+
+        Debug.Log($"成功创建 {row * column} 个照片，使用了 {photoIndex} 张图片");
+    }
+
+    // 获取洗牌后的图片索引
+    List<int> GetShuffledPhotoIndices()
+    {
+        List<int> indices = new List<int>();
+
+        // 添加所有图片的索引
+        for (int i = 0; i < loadedSprites.Length; i++)
+        {
+            indices.Add(i);
+        }
+
+        // Fisher-Yates 洗牌算法 - 确保随机但不重复
+        for (int i = indices.Count - 1; i > 0; i--)
+        {
+            int randomIndex = Random.Range(0, i + 1);
+            int temp = indices[i];
+            indices[i] = indices[randomIndex];
+            indices[randomIndex] = temp;
+        }
+
+        return indices;
     }
 
     string GetDetailName(string spriteName)
