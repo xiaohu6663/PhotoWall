@@ -31,16 +31,20 @@ public class PhotoWall : MonoBehaviour, IPointerClickHandler
     [Header("自动恢复设置")]
     public float autoRestoreTime = 30f; // 自动恢复时间（秒")
 
+    [Header("详情页设置")]
+    public GameObject detailPagePrefab; // 详情页预制体
+    public Sprite detailBackground; // 详情页背景图片
+    public PhotoDataSO photoData; // 照片数据
+
     List<List<RectTransform>> goList;  //二维列表，存储所有照片引用
     Dictionary<RectTransform, Vector2> itemPosDict;//字典，照片-目标位置
     Dictionary<RectTransform, Vector2Int> itemIndexDict; // 字典，照片-行列索引
-    Dictionary<RectTransform, string> itemDetailMap; // 字典，照片-详情页图片名称映射
     List<RectTransform> changedItemList;  // 临时列表，存储受扩散效果影响的照片
     Sprite[] loadedSprites;               // 图片数组（从Resources加载）
     Dictionary<string, Sprite> detailSprites; // 详情页图片字典
 
     RectTransform currentSelectedItem; // 当前选中的照片
-    GameObject currentDetailPage; // 当前显示的详情页（改为GameObject）
+    GameObject currentDetailPage; // 当前显示的详情页
     bool isExpanded = false; // 是否已展开
     Coroutine autoRestoreCoroutine; // 自动恢复协程
 
@@ -51,12 +55,23 @@ public class PhotoWall : MonoBehaviour, IPointerClickHandler
         goList = new List<List<RectTransform>>();
         itemPosDict = new Dictionary<RectTransform, Vector2>();
         itemIndexDict = new Dictionary<RectTransform, Vector2Int>();
-        itemDetailMap = new Dictionary<RectTransform, string>();
         changedItemList = new List<RectTransform>();
         detailSprites = new Dictionary<string, Sprite>();
 
         LoadSpritesFromResources();
         LoadDetailSprites();
+
+        // 初始化PhotoData
+        if (photoData != null)
+        {
+            photoData.InitializeDictionary();
+            Debug.Log($"PhotoData 初始化完成，共有 {photoData.photoItems.Count} 条数据");
+        }
+        else
+        {
+            Debug.LogError("PhotoData 未分配！");
+        }
+
         CreateGos();
     }
 
@@ -98,8 +113,6 @@ public class PhotoWall : MonoBehaviour, IPointerClickHandler
 
     void CreateGos()//入场动画
     {
-        // 创建图片索引列表并洗牌
-        List<int> photoIndices = GetShuffledPhotoIndices();
         int photoIndex = 0;
 
         for (int i = 0; i < row; i++)
@@ -113,20 +126,18 @@ public class PhotoWall : MonoBehaviour, IPointerClickHandler
                 item.name = $"Photo_{i}_{j}";
                 item.transform.SetParent(transform);
 
-                // 设置图片 - 使用洗牌后的顺序
-                if (loadedSprites != null && loadedSprites.Length > 0)
+                // 设置图片 - 直接按顺序使用，不洗牌
+                if (loadedSprites != null && loadedSprites.Length > 0 && photoIndex < loadedSprites.Length)
                 {
                     Image img = item.GetComponent<Image>();
                     if (img != null)
                     {
-                        // 使用洗牌后的索引
-                        int spriteIndex = photoIndices[photoIndex];
-                        Sprite selectedSprite = loadedSprites[spriteIndex];
+                        // 直接使用顺序索引
+                        Sprite selectedSprite = loadedSprites[photoIndex];
                         img.sprite = selectedSprite;
-
-                        string detailName = GetDetailName(selectedSprite.name);
-                        itemDetailMap[item] = detailName;
                         photoIndex++;
+
+                        Debug.Log($"设置图片: {selectedSprite.name} 到位置 ({i},{j})");
                     }
                 }
 
@@ -149,34 +160,6 @@ public class PhotoWall : MonoBehaviour, IPointerClickHandler
         }
 
         Debug.Log($"成功创建 {row * column} 个照片，使用了 {photoIndex} 张图片");
-    }
-
-    // 获取洗牌后的图片索引
-    List<int> GetShuffledPhotoIndices()
-    {
-        List<int> indices = new List<int>();
-
-        // 添加所有图片的索引
-        for (int i = 0; i < loadedSprites.Length; i++)
-        {
-            indices.Add(i);
-        }
-
-        // Fisher-Yates 洗牌算法 - 确保随机但不重复
-        for (int i = indices.Count - 1; i > 0; i--)
-        {
-            int randomIndex = Random.Range(0, i + 1);
-            int temp = indices[i];
-            indices[i] = indices[randomIndex];
-            indices[randomIndex] = temp;
-        }
-
-        return indices;
-    }
-
-    string GetDetailName(string spriteName)
-    {
-        return spriteName + "_detail";
     }
 
     void AddClickEventToItem(RectTransform item)
@@ -242,7 +225,6 @@ public class PhotoWall : MonoBehaviour, IPointerClickHandler
         StartAutoRestoreTimer();
     }
 
-    // 修复后的ShowDetailPage方法
     void ShowDetailPage(RectTransform item)
     {
         // 销毁现有的详情页
@@ -251,79 +233,136 @@ public class PhotoWall : MonoBehaviour, IPointerClickHandler
             Destroy(currentDetailPage);
         }
 
-        // 创建详情页对象
-        currentDetailPage = new GameObject("DetailPage", typeof(RectTransform), typeof(Image));
-        RectTransform detailRT = currentDetailPage.GetComponent<RectTransform>();
-        detailRT.SetParent(transform);
+        // 检查详情页预制体
+        if (detailPagePrefab == null)
+        {
+            Debug.LogError("详情页预制体未设置！");
+            return;
+        }
 
-        // 关键修复：使用目标位置而不是当前位置
+        // 实例化详情页
+        currentDetailPage = Instantiate(detailPagePrefab, transform);
+        DetailPageController detailController = currentDetailPage.GetComponent<DetailPageController>();
+
+        if (detailController == null)
+        {
+            Debug.LogError("详情页预制体缺少DetailPageController组件！");
+            return;
+        }
+
+        // 获取图片数据
+        string imageName = item.GetComponent<Image>().sprite.name;
+        if (imageName.Contains("."))
+        {
+            imageName = System.IO.Path.GetFileNameWithoutExtension(imageName);
+        }
+
+        Debug.Log($"正在查找图片数据: {imageName}");
+
+        PhotoDataSO.PhotoItem photoItem = null;
+        if (photoData != null)
+        {
+            photoItem = photoData.GetPhotoItem(imageName);
+            if (photoItem == null)
+            {
+                Debug.LogWarning($"未找到图片 '{imageName}' 的数据");
+            }
+        }
+        else
+        {
+            Debug.LogError("PhotoData 未分配！");
+        }
+
+        if (photoItem == null)
+        {
+            Debug.LogWarning($"未找到图片 '{imageName}' 的数据，使用默认数据");
+            photoItem = new PhotoDataSO.PhotoItem(imageName, "未命名展品", "暂无简介");
+        }
+        else
+        {
+            Debug.Log($"找到数据: {photoItem.title} - {photoItem.description}");
+        }
+
+        // 计算位置 - 与原脚本完全一致
         Vector2 targetItemPos = itemPosDict[item]; // 照片的目标位置
         Vector2 inwardOffset = CalculateInwardOffset(item);
 
-        // 设置位置和尺寸
-        detailRT.anchoredPosition = targetItemPos + inwardOffset; // 目标位置 + 偏移
-        detailRT.sizeDelta = item.sizeDelta;
+        // 设置详情页的位置和大小 - 与原脚本行为一致
+        RectTransform detailRT = currentDetailPage.GetComponent<RectTransform>();
 
-        // 复制锚点设置，确保位置计算一致
+        // 复制原始照片的锚点和轴心点设置
         detailRT.anchorMin = item.anchorMin;
         detailRT.anchorMax = item.anchorMax;
         detailRT.pivot = item.pivot;
 
-        // 设置图片
-        Image detailImage = currentDetailPage.GetComponent<Image>();
-        if (itemDetailMap.ContainsKey(item))
-        {
-            string detailName = itemDetailMap[item];
-            if (detailSprites.ContainsKey(detailName))
-            {
-                detailImage.sprite = detailSprites[detailName];
-            }
-            else
-            {
-                // 如果找不到详情页，使用原始图片作为备选
-                detailImage.sprite = item.GetComponent<Image>().sprite;
-                Debug.LogWarning($"使用原始图片作为详情页: {detailName} 未找到");
-            }
-        }
+        // 设置位置和尺寸 - 与原脚本完全一致
+        detailRT.anchoredPosition = targetItemPos + inwardOffset; // 目标位置 + 偏移
+        detailRT.sizeDelta = item.sizeDelta;
 
-        // 为详情页添加点击事件
-        AddClickEventToDetailPage(detailRT);
+        // 计算合适的放大倍数，确保详情页不会超出屏幕
+        float calculatedEnlargeSize = CalculateOptimalEnlargeSize(item.sizeDelta);
 
-        // 设置初始状态和动画
-        detailRT.localScale = Vector3.one;
-        detailRT.DOScale(enlargeSize, 0.5f).SetEase(Ease.OutBack);
+        Debug.Log($"详情页设置 - 位置: {detailRT.anchoredPosition}, 原始尺寸: {item.sizeDelta}, 使用放大倍数: {calculatedEnlargeSize}");
 
-        // 确保详情页在正确层级
-        detailRT.SetAsLastSibling();
+        // 显示详情页 - 使用计算后的放大倍数
+        detailController.ShowDetail(
+            photoItem,
+            item.GetComponent<Image>().sprite, // 原图
+            detailBackground,                  // 背景图
+            detailRT.anchoredPosition,         // 使用计算好的位置
+            calculatedEnlargeSize              // 使用计算后的放大倍数
+        );
 
-        Debug.Log($"详情页位置: {detailRT.anchoredPosition}, 目标位置: {targetItemPos}, 偏移: {inwardOffset}");
-    }
-
-    // 为详情页添加点击事件
-    void AddClickEventToDetailPage(RectTransform detailRT)
-    {
-        EventTrigger trigger = detailRT.gameObject.AddComponent<EventTrigger>();
-        EventTrigger.Entry entry = new EventTrigger.Entry();
-        entry.eventID = EventTriggerType.PointerClick;
-        entry.callback.AddListener((data) => {
-            Debug.Log("详情页被点击");
+        // 为详情页添加关闭监听
+        detailController.AddCloseListener(() => {
             RestoreAllItems();
         });
-        trigger.triggers.Add(entry);
+    }
 
-        // 确保详情页可以接收点击
-        Image image = detailRT.GetComponent<Image>();
-        if (image != null)
+    // 计算最佳放大倍数，确保详情页不会超出屏幕
+    float CalculateOptimalEnlargeSize(Vector2 originalSize)
+    {
+        // 获取画布尺寸
+        Canvas canvas = GetComponentInParent<Canvas>();
+        if (canvas == null)
         {
-            image.raycastTarget = true;
+            Debug.LogWarning("无法找到Canvas，使用默认放大倍数");
+            return enlargeSize;
         }
+
+        RectTransform canvasRect = canvas.GetComponent<RectTransform>();
+        Vector2 canvasSize = canvasRect.rect.size;
+
+        // 计算最大可用尺寸（留出边距）
+        float margin = 50f; // 边距
+        Vector2 maxAvailableSize = canvasSize - new Vector2(margin * 2, margin * 2);
+
+        // 计算水平和垂直方向的最大放大倍数
+        float maxHorizontalScale = maxAvailableSize.x / originalSize.x;
+        float maxVerticalScale = maxAvailableSize.y / originalSize.y;
+
+        // 取较小的那个，确保图片完全在屏幕内
+        float maxScale = Mathf.Min(maxHorizontalScale, maxVerticalScale);
+
+        // 使用用户设置的放大倍数，但不能超过最大可用尺寸
+        return Mathf.Min(enlargeSize, maxScale);
     }
 
     void HideDetailPage()
     {
         if (currentDetailPage != null)
         {
-            Destroy(currentDetailPage);
+            DetailPageController detailController = currentDetailPage.GetComponent<DetailPageController>();
+            if (detailController != null)
+            {
+                detailController.HideDetail();
+                // 延迟销毁，让动画完成
+                Destroy(currentDetailPage, 0.5f);
+            }
+            else
+            {
+                Destroy(currentDetailPage);
+            }
             currentDetailPage = null;
         }
     }
